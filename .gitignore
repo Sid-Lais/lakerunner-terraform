@@ -1,0 +1,20 @@
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Customer Configuration Files
+# These files contain customer-specific settings and should not be tracked
+terraform/environments/*/terraform.tfvars
+terraform/environments/*/terraform.tfvars.backup
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

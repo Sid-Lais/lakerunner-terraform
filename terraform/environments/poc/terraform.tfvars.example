@@ -1,0 +1,38 @@
+# =============================================================================
+# LAKERUNNER POC ENVIRONMENT - QUICK SETUP
+# =============================================================================
+# This creates a minimal GCP environment for evaluating Lakerunner
+# Perfect for demos, trials, and proof-of-concept deployments
+
+# REQUIRED: Your GCP Project ID
+project_id = "your-gcp-project-id-here"
+
+# REQUIRED: GCP Region (choose closest to you)
+# Common options: us-central1, us-east1, europe-west1, asia-southeast1
+region = "us-central1"
+
+# Optional: Specific zone (defaults to {region}-a)
+zone = "us-central1-a"
+
+# Environment identifier
+environment = "poc"
+
+# Resource labels (helps with cost tracking and organization)
+labels = {
+  purpose     = "lakerunner-poc"
+  team        = "evaluation"
+  auto_delete = "30-days"  # Reminder to clean up POC resources
+}
+
+# Network Configuration
+# Option 1: Create new VPC (default, easiest for POC)
+create_vpc = true
+
+# Option 2: Use existing VPC (for customers with network restrictions)
+# create_vpc   = false
+# vpc_name     = "your-existing-vpc-name"
+# subnet_name  = "your-existing-subnet-name"
+
+# Compute Options
+# Enable a pre-configured VM for testing (optional)
+enable_compute = false  # Set to true if you want a ready-to-go processing VM
