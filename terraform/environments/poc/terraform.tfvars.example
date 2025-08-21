@@ -17,11 +17,11 @@ zone = "us-central1-a"
 # Environment identifier
 environment = "poc"
 
-# Resource labels (helps with cost tracking and organization)
+# Resource labels (optional - apply to all taggable resources)
 labels = {
-  purpose     = "lakerunner-poc"
-  team        = "evaluation"
-  auto_delete = "30-days"  # Reminder to clean up POC resources
+  # team        = "your-team-name"
+  # environment = "poc"
+  # cost_center = "engineering"
 }
 
 # Network Configuration

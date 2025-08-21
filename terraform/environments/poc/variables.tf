@@ -22,12 +22,9 @@ variable "environment" {
 }
 
 variable "labels" {
-  description = "Labels for resource organization and cost tracking"
+  description = "Labels to apply to all taggable resources"
   type        = map(string)
-  default = {
-    purpose     = "lakerunner-poc"
-    auto_delete = "30-days"
-  }
+  default     = {}
 }
 
 # Network Configuration

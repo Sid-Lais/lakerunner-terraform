@@ -22,7 +22,7 @@ validate: ## Validate Terraform configuration
 
 plan: ## Run terraform plan with test project ID
 	@echo "📋 Running terraform plan..."
-	@cd terraform/environments/poc && terraform plan -var="project_id=test-project-id"
+	@cd terraform/environments/poc && terraform plan -var="project_id=lakerunner-terraform"
 
 clean: ## Clean up temporary files
 	@echo "🧹 Cleaning up..."

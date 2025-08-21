@@ -1,16 +1,46 @@
-module "gcp_provider" {
-  source = "../../providers/gcp"
-
-  project_id  = var.project_id
-  region      = var.region
-  zone        = var.zone
-  environment = var.environment
-  labels      = var.labels
+terraform {
+  required_version = ">= 1.0"
+  
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 5.0"
+    }
+    google-beta = {
+      source  = "hashicorp/google-beta"
+      version = "~> 5.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.0"
+    }
+  }
 }
 
-# POC Data Storage - Basic GCS bucket for testing data ingestion
-resource "google_storage_bucket" "poc_data_lake" {
-  name     = "${var.project_id}-lakerunner-poc-data"
+provider "google" {
+  project = var.project_id
+  region  = var.region
+  zone    = var.zone
+
+  default_labels = var.labels
+}
+
+provider "google-beta" {
+  project = var.project_id
+  region  = var.region
+  zone    = var.zone
+
+  default_labels = var.labels
+}
+
+# Random ID for unique bucket naming
+resource "random_id" "bucket_suffix" {
+  byte_length = 4
+}
+
+# Main Lakerunner bucket with notifications
+resource "google_storage_bucket" "lakerunner" {
+  name     = "lakerunner-${random_id.bucket_suffix.hex}"
   location = var.region
 
   uniform_bucket_level_access = true
@@ -30,17 +60,39 @@ resource "google_storage_bucket" "poc_data_lake" {
   }
 }
 
-# POC Configuration Storage - For Lakerunner settings
-resource "google_storage_bucket" "poc_config" {
-  name     = "${var.project_id}-lakerunner-poc-config"
-  location = var.region
-
-  uniform_bucket_level_access = true
-
-  versioning {
-    enabled = true # Keep config history
-  }
+# Pub/Sub topic for object notifications (excluding db/ path)
+resource "google_pubsub_topic" "object_notifications" {
+  name = "${var.project_id}-lakerunner-object-notifications"
 }
+
+# Storage notification for all objects except db/ path
+resource "google_storage_notification" "object_create_notify" {
+  bucket         = google_storage_bucket.lakerunner.name
+  topic          = google_pubsub_topic.object_notifications.id
+  event_types    = ["OBJECT_FINALIZE"]
+  payload_format = "JSON_API_V1"
+
+  # This will notify on all objects - we'll filter out db/ in the subscriber
+  # GCS notifications don't support path exclusions, only inclusions
+}
+
+# Service account for Pub/Sub notifications
+resource "google_service_account" "pubsub_notifications" {
+  account_id   = "lakerunner-pubsub-sa"
+  display_name = "Lakerunner Pub/Sub Notifications"
+  description  = "Service account for handling object notifications"
+}
+
+# Grant Pub/Sub publisher permission to the storage service account
+resource "google_pubsub_topic_iam_member" "storage_publisher" {
+  topic  = google_pubsub_topic.object_notifications.name
+  role   = "roles/pubsub.publisher"
+  member = "serviceAccount:service-${data.google_project.current.number}@gs-project-accounts.iam.gserviceaccount.com"
+}
+
+# Get project data for the storage service account
+data "google_project" "current" {}
+
 
 # Flexible Network Configuration
 locals {

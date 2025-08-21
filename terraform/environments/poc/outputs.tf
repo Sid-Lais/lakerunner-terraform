@@ -1,22 +1,19 @@
-output "poc_data_bucket" {
-  description = "GCS bucket for POC data storage"
-  value       = google_storage_bucket.poc_data_lake.name
+# Main Lakerunner bucket outputs
+output "lakerunner_bucket" {
+  description = "Main Lakerunner bucket name"
+  value       = google_storage_bucket.lakerunner.name
 }
 
-output "poc_data_bucket_url" {
-  description = "URL for the POC data bucket"
-  value       = google_storage_bucket.poc_data_lake.url
+output "lakerunner_bucket_url" {
+  description = "URL for the Lakerunner bucket"
+  value       = google_storage_bucket.lakerunner.url
 }
 
-output "poc_config_bucket" {
-  description = "GCS bucket for Lakerunner configuration"
-  value       = google_storage_bucket.poc_config.name
+output "object_notifications_topic" {
+  description = "Pub/Sub topic for object notifications"
+  value       = google_pubsub_topic.object_notifications.name
 }
 
-output "poc_config_bucket_url" {
-  description = "URL for the POC config bucket"
-  value       = google_storage_bucket.poc_config.url
-}
 
 output "project_id" {
   description = "GCP Project ID used for this POC"
@@ -63,8 +60,8 @@ output "deployment_summary" {
     🎉 POC Environment Ready!
     
     Storage:
-      Data Bucket: ${google_storage_bucket.poc_data_lake.name}
-      Config Bucket: ${google_storage_bucket.poc_config.name}
+      Lakerunner Bucket: ${google_storage_bucket.lakerunner.name}
+      Notifications Topic: ${google_pubsub_topic.object_notifications.name}
     
     Network:
       VPC: ${local.vpc_name}
