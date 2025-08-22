@@ -44,6 +44,7 @@ resource "google_storage_bucket" "lakerunner" {
   location = var.region
 
   uniform_bucket_level_access = true
+  force_destroy              = true  # Allow deletion even with contents
 
   versioning {
     enabled = false # Simplified for POC
@@ -63,6 +64,21 @@ resource "google_storage_bucket" "lakerunner" {
 # Pub/Sub topic for object notifications (excluding db/ path)
 resource "google_pubsub_topic" "object_notifications" {
   name = "${var.project_id}-lakerunner-object-notifications"
+}
+
+# Pull subscription for consuming object notifications
+resource "google_pubsub_subscription" "lakerunner_notifications" {
+  name  = "${var.project_id}-lakerunner-notifications-sub"
+  topic = google_pubsub_topic.object_notifications.name
+  
+  ack_deadline_seconds = 20
+  message_retention_duration = "604800s" # 7 days
+  
+  enable_exactly_once_delivery = true
+  
+  expiration_policy {
+    ttl = "2678400s" # 31 days
+  }
 }
 
 # Storage notification for all objects except db/ path
@@ -90,6 +106,13 @@ resource "google_pubsub_topic_iam_member" "storage_publisher" {
   member = "serviceAccount:service-${data.google_project.current.number}@gs-project-accounts.iam.gserviceaccount.com"
 }
 
+# Grant Pub/Sub subscriber permission to the Lakerunner service account
+resource "google_pubsub_subscription_iam_member" "lakerunner_subscriber" {
+  subscription = google_pubsub_subscription.lakerunner_notifications.name
+  role         = "roles/pubsub.subscriber"
+  member       = "serviceAccount:${google_service_account.lakerunner_poc.email}"
+}
+
 # Get project data for the storage service account
 data "google_project" "current" {}
 
@@ -98,6 +121,8 @@ data "google_project" "current" {}
 locals {
   vpc_name    = var.create_vpc ? google_compute_network.poc_vpc[0].name : var.vpc_name
   subnet_name = var.create_vpc ? google_compute_subnetwork.poc_subnet[0].name : var.subnet_name
+  postgresql_password = var.create_postgresql && var.postgresql_password == "" ? random_password.postgresql_password[0].result : var.postgresql_password
+  postgresql_instance_name = var.postgresql_instance_name != "" ? var.postgresql_instance_name : "${var.project_id}-lakerunner-poc-postgres"
 }
 
 # Create VPC if requested (default for POC)
@@ -148,6 +173,116 @@ resource "google_project_iam_member" "lakerunner_storage_admin" {
 resource "google_project_iam_member" "lakerunner_compute_viewer" {
   project = var.project_id
   role    = "roles/compute.viewer"
+  member  = "serviceAccount:${google_service_account.lakerunner_poc.email}"
+}
+
+# PostgreSQL Configuration
+
+# Generate random password for PostgreSQL if not provided
+resource "random_password" "postgresql_password" {
+  count   = var.create_postgresql && var.postgresql_password == "" ? 1 : 0
+  length  = 16
+  special = false
+}
+
+# Enable Service Networking API (required for Cloud SQL private networking)
+resource "google_project_service" "service_networking" {
+  count   = var.create_postgresql ? 1 : 0
+  project = var.project_id
+  service = "servicenetworking.googleapis.com"
+}
+
+# Create VPC peering for Cloud SQL private networking
+resource "google_compute_global_address" "private_ip_address" {
+  count         = var.create_postgresql ? 1 : 0
+  name          = "google-managed-services-${local.vpc_name}"
+  purpose       = "VPC_PEERING"
+  address_type  = "INTERNAL"
+  prefix_length = 16
+  network       = "projects/${var.project_id}/global/networks/${local.vpc_name}"
+}
+
+resource "google_service_networking_connection" "private_vpc_connection" {
+  count                   = var.create_postgresql ? 1 : 0
+  network                 = "projects/${var.project_id}/global/networks/${local.vpc_name}"
+  service                 = "servicenetworking.googleapis.com"
+  reserved_peering_ranges = [google_compute_global_address.private_ip_address[0].name]
+  
+  depends_on = [google_project_service.service_networking]
+}
+
+# Create PostgreSQL instance if requested
+resource "google_sql_database_instance" "lakerunner_postgresql" {
+  count            = var.create_postgresql ? 1 : 0
+  name             = local.postgresql_instance_name
+  database_version = var.postgresql_version
+  region           = var.region
+
+  settings {
+    tier = var.postgresql_machine_type
+    
+    ip_configuration {
+      ipv4_enabled    = false
+      private_network = "projects/${var.project_id}/global/networks/${local.vpc_name}"
+      ssl_mode        = "ALLOW_UNENCRYPTED_AND_ENCRYPTED"  # POC-friendly, use "ENCRYPTED_ONLY" for production
+    }
+    
+    backup_configuration {
+      enabled    = true
+      start_time = "02:00"
+    }
+    
+    maintenance_window {
+      day          = 7  # Sunday
+      hour         = 2  # 2 AM
+      update_track = "stable"
+    }
+    
+    user_labels = var.labels
+  }
+
+  deletion_protection = false  # POC-friendly, enable for production
+  
+  depends_on = [
+    google_compute_network.poc_vpc,
+    google_compute_subnetwork.poc_subnet,
+    google_project_service.service_networking,
+    google_service_networking_connection.private_vpc_connection
+  ]
+
+  # Ensure PostgreSQL is deleted before VPC peering
+  lifecycle {
+    create_before_destroy = false
+  }
+}
+
+# Create PostgreSQL database
+resource "google_sql_database" "lakerunner_database" {
+  count    = var.create_postgresql ? 1 : 0
+  name     = var.postgresql_database_name
+  instance = google_sql_database_instance.lakerunner_postgresql[0].name
+}
+
+# Create configdb database for Lakerunner configuration
+resource "google_sql_database" "lakerunner_configdb" {
+  count    = var.create_postgresql ? 1 : 0
+  name     = "configdb"
+  instance = google_sql_database_instance.lakerunner_postgresql[0].name
+}
+
+# Create PostgreSQL user
+resource "google_sql_user" "lakerunner_user" {
+  count    = var.create_postgresql ? 1 : 0
+  name     = var.postgresql_user
+  instance = google_sql_database_instance.lakerunner_postgresql[0].name
+  password = local.postgresql_password
+}
+
+# Grant additional permissions to the service account for database management
+resource "google_project_iam_member" "lakerunner_cloudsql_client" {
+  count  = var.create_postgresql ? 1 : 0
+  project = var.project_id
+  role    = "roles/cloudsql.client"
   member  = "serviceAccount:${google_service_account.lakerunner_poc.email}"
 }
 

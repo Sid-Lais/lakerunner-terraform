@@ -36,3 +36,25 @@ create_vpc = true
 # Compute Options
 # Enable a pre-configured VM for testing (optional)
 enable_compute = false  # Set to true if you want a ready-to-go processing VM
+
+# PostgreSQL Configuration
+# Option 1: Create new PostgreSQL instance (default, easiest for POC)
+create_postgresql = true
+
+# Option 2: Use existing PostgreSQL instance (for customers with database restrictions)
+# create_postgresql        = false
+# postgresql_instance_name = "your-existing-postgresql-instance"
+# postgresql_host         = "your-postgresql-host"
+# postgresql_port         = 5432
+# postgresql_database_name = "lakerunner"
+# postgresql_user         = "lakerunner"
+# postgresql_password     = "your-existing-password"
+
+# PostgreSQL Instance Settings (only used when create_postgresql = true)
+postgresql_machine_type = "db-f1-micro"  # Smallest instance for POC (cost-effective)
+postgresql_disk_size_gb = 10             # 10GB storage (sufficient for POC)
+postgresql_version      = "POSTGRES_16"  # Latest stable version
+
+# PostgreSQL Credentials (only used when create_postgresql = true)
+# Leave postgresql_password empty for auto-generation (recommended for POC)
+# postgresql_password = ""  # Auto-generated if empty

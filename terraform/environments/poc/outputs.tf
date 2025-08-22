@@ -42,6 +42,49 @@ output "service_account_email" {
   value       = google_service_account.lakerunner_poc.email
 }
 
+# PostgreSQL outputs
+output "postgresql_instance_name" {
+  description = "PostgreSQL instance name (created or existing)"
+  value       = var.create_postgresql ? google_sql_database_instance.lakerunner_postgresql[0].name : var.postgresql_instance_name
+}
+
+output "postgresql_connection_name" {
+  description = "PostgreSQL connection name for Cloud SQL Proxy"
+  value       = var.create_postgresql ? google_sql_database_instance.lakerunner_postgresql[0].connection_name : null
+}
+
+output "postgresql_private_ip_address" {
+  description = "PostgreSQL private IP address"
+  value       = var.create_postgresql ? google_sql_database_instance.lakerunner_postgresql[0].private_ip_address : null
+}
+
+output "postgresql_database_name" {
+  description = "PostgreSQL database name"
+  value       = var.postgresql_database_name
+}
+
+output "postgresql_configdb_name" {
+  description = "PostgreSQL configdb name"
+  value       = "configdb"
+}
+
+output "postgresql_user" {
+  description = "PostgreSQL username"
+  value       = var.postgresql_user
+}
+
+output "postgresql_password" {
+  description = "PostgreSQL password (auto-generated if not provided)"
+  value       = local.postgresql_password
+  sensitive   = true
+}
+
+output "postgresql_connection_string" {
+  description = "PostgreSQL connection string for applications"
+  value       = var.create_postgresql ? "postgresql://${var.postgresql_user}:${local.postgresql_password}@${google_sql_database_instance.lakerunner_postgresql[0].private_ip_address}:5432/${var.postgresql_database_name}" : null
+  sensitive   = true
+}
+
 # VM outputs (when enabled)
 output "vm_external_ip" {
   description = "External IP of the processing VM (when enabled)"
@@ -62,6 +105,8 @@ output "deployment_summary" {
     Storage:
       Lakerunner Bucket: ${google_storage_bucket.lakerunner.name}
       Notifications Topic: ${google_pubsub_topic.object_notifications.name}
+    
+          ${var.create_postgresql ? "Database:\n      PostgreSQL Instance: ${google_sql_database_instance.lakerunner_postgresql[0].name}\n      Databases: ${var.postgresql_database_name}, configdb\n      User: ${var.postgresql_user}\n      Private IP: ${google_sql_database_instance.lakerunner_postgresql[0].private_ip_address}\n      ✅ Both lrdb and configdb ready for Lakerunner" : "💡 Enable PostgreSQL with create_postgresql=true for database support"}
     
     Network:
       VPC: ${local.vpc_name}

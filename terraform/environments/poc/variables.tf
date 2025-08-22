@@ -58,3 +58,53 @@ variable "enable_compute" {
   type        = bool
   default     = false
 }
+
+# PostgreSQL Configuration
+variable "create_postgresql" {
+  description = "Create new PostgreSQL instance (true) or use existing (false)"
+  type        = bool
+  default     = true
+}
+
+variable "postgresql_instance_name" {
+  description = "PostgreSQL instance name - used for new instance creation or existing instance reference"
+  type        = string
+  default     = ""
+}
+
+variable "postgresql_database_name" {
+  description = "PostgreSQL database name for Lakerunner"
+  type        = string
+  default     = "lakerunner"
+}
+
+variable "postgresql_user" {
+  description = "PostgreSQL username for Lakerunner"
+  type        = string
+  default     = "lakerunner"
+}
+
+variable "postgresql_password" {
+  description = "PostgreSQL password for Lakerunner (leave empty for auto-generation)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "postgresql_machine_type" {
+  description = "PostgreSQL machine type (db-f1-micro for POC, db-n1-standard-1 for production)"
+  type        = string
+  default     = "db-f1-micro"
+}
+
+variable "postgresql_disk_size_gb" {
+  description = "PostgreSQL disk size in GB"
+  type        = number
+  default     = 10
+}
+
+variable "postgresql_version" {
+  description = "PostgreSQL version"
+  type        = string
+  default     = "POSTGRES_16"
+}
