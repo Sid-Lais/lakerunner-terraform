@@ -47,9 +47,7 @@ The POC environment supports two deployment patterns:
 ### Core Infrastructure Components
 
 **Storage:**
-- `app_object_store` - Main application bucket with Pub/Sub notifications
-- `poc_data_lake` - General data storage bucket
-- `poc_config` - Configuration storage with versioning
+- `lakerunner` bucket - Main application bucket with Pub/Sub notifications
 
 **Notifications:**
 - GCS → Pub/Sub integration for object create events

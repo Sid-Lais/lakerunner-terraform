@@ -14,7 +14,7 @@ terraform validate
 
 echo "✅ terraform plan (dry-run)"
 # Use our test project ID
-terraform plan -var="project_id=lakerunner-terraform" -target=google_storage_bucket.poc_data_lake -target=google_storage_bucket.poc_config -out=test.plan
+terraform plan -var="project_id=lakerunner-terraform" -target=google_storage_bucket.lakerunner -out=test.plan
 
 echo "🧹 Cleaning up test artifacts"
 rm -f test.plan
