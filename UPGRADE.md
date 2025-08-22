@@ -30,9 +30,9 @@ terraform apply  # Apply if everything looks good
 
 ## What's Safe to Update
 
-✅ **Always Safe**: We never modify your `terraform.tfvars` files  
-✅ **Infrastructure Improvements**: New resources, better defaults  
-✅ **Provider Updates**: Newer Terraform provider versions  
+**Always Safe**: We never modify your `terraform.tfvars` files  
+**Infrastructure Improvements**: New resources, better defaults  
+**Provider Updates**: Newer Terraform provider versions  
 
 ## Configuration File Strategy
 

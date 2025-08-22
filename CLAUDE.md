@@ -39,10 +39,10 @@ The structure is designed to support future AWS and Azure deployments, but curre
 - Customers only need to change `project_id` for basic setup
 - Safe upgrade path: customer configs never conflict with repo updates
 
-### Network Flexibility
-The POC environment supports two deployment patterns:
-- **Default**: Creates new VPC with permissive firewall rules (easy for startups/quick POC)
-- **Enterprise**: Uses existing customer VPC (`create_vpc = false`)
+### Network Configuration
+The POC environment uses existing VPC infrastructure:
+- **Default**: Uses GCP default VPC (simplest, works for most POCs)
+- **Enterprise**: Uses existing customer VPC by setting `vpc_name` and `subnet_name`
 
 ### Core Infrastructure Components
 
@@ -54,9 +54,10 @@ The POC environment supports two deployment patterns:
 - All notifications fire (GCS doesn't support path exclusions)
 - Application must filter out `db/` path notifications in subscriber
 
-**Compute:**
-- Optional VM with Docker pre-installed (`enable_compute = false` by default)
-- Uses dedicated service account with minimal required permissions
+**Kubernetes:**
+- Optional GKE cluster for container workloads (`enable_gke = false` by default)
+- Auto-scaling node pool (1-10 nodes) with spot instances for cost savings
+- Workload Identity enabled for secure service account mappings
 
 **Security:**
 - Dedicated service accounts with least-privilege access
@@ -80,3 +81,5 @@ This infrastructure prioritizes:
 4. **Flexibility** - Supports both greenfield and enterprise network constraints
 
 The POC environment is designed to make an excellent first impression for potential customers evaluating Lakerunner.
+
+- never use emoji in any docs, scripts, or other files except for tests needing to test for proper emoji handling

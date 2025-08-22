@@ -28,35 +28,53 @@ variable "labels" {
 }
 
 # Network Configuration
-variable "create_vpc" {
-  description = "Create new VPC (true) or use existing VPC (false)"
+variable "vpc_name" {
+  description = "VPC name for existing VPC to use"
+  type        = string
+  default     = "default"
+}
+
+variable "subnet_name" {
+  description = "Subnet name for existing subnet to use"
+  type        = string
+  default     = "default"
+}
+
+# Kubernetes Configuration
+variable "enable_gke" {
+  description = "Enable GKE cluster for container workloads"
+  type        = bool
+  default     = false
+}
+
+variable "gke_min_nodes" {
+  description = "Minimum number of nodes in the GKE node pool"
+  type        = number
+  default     = 1
+}
+
+variable "gke_max_nodes" {
+  description = "Maximum number of nodes in the GKE node pool"
+  type        = number
+  default     = 10
+}
+
+variable "gke_machine_type" {
+  description = "Machine type for GKE nodes"
+  type        = string
+  default     = "e2-standard-4"
+}
+
+variable "gke_use_spot" {
+  description = "Use spot instances for GKE nodes"
   type        = bool
   default     = true
 }
 
-variable "vpc_name" {
-  description = "VPC name - used for new VPC creation or existing VPC reference"
-  type        = string
-  default     = ""
-}
-
-variable "subnet_name" {
-  description = "Subnet name - used for new subnet creation or existing subnet reference"
-  type        = string
-  default     = ""
-}
-
-variable "subnet_cidr" {
-  description = "CIDR range for new subnet (only used when create_vpc=true)"
-  type        = string
-  default     = "10.0.0.0/24"
-}
-
-# Compute Configuration
-variable "enable_compute" {
-  description = "Enable compute resources (useful for processing nodes)"
-  type        = bool
-  default     = false
+variable "gke_disk_size_gb" {
+  description = "Disk size in GB for GKE nodes"
+  type        = number
+  default     = 50
 }
 
 # PostgreSQL Configuration
@@ -92,7 +110,7 @@ variable "postgresql_password" {
 }
 
 variable "postgresql_machine_type" {
-  description = "PostgreSQL machine type (db-f1-micro for POC, db-n1-standard-1 for production)"
+  description = "PostgreSQL machine type"
   type        = string
   default     = "db-f1-micro"
 }
@@ -106,5 +124,5 @@ variable "postgresql_disk_size_gb" {
 variable "postgresql_version" {
   description = "PostgreSQL version"
   type        = string
-  default     = "POSTGRES_16"
+  default     = "POSTGRES_17"
 }

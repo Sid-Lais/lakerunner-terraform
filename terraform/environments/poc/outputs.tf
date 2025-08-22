@@ -85,39 +85,50 @@ output "postgresql_connection_string" {
   sensitive   = true
 }
 
-# VM outputs (when enabled)
-output "vm_external_ip" {
-  description = "External IP of the processing VM (when enabled)"
-  value       = var.enable_compute ? google_compute_instance.lakerunner_processor[0].network_interface[0].access_config[0].nat_ip : null
+# GKE outputs (when enabled)
+output "gke_cluster_name" {
+  description = "Name of the GKE cluster (when enabled)"
+  value       = var.enable_gke ? google_container_cluster.lakerunner_gke[0].name : null
 }
 
-output "vm_name" {
-  description = "Name of the processing VM (when enabled)"
-  value       = var.enable_compute ? google_compute_instance.lakerunner_processor[0].name : null
+output "gke_cluster_endpoint" {
+  description = "GKE cluster endpoint (when enabled)"
+  value       = var.enable_gke ? google_container_cluster.lakerunner_gke[0].endpoint : null
+  sensitive   = true
+}
+
+output "gke_cluster_location" {
+  description = "GKE cluster location (when enabled)"
+  value       = var.enable_gke ? google_container_cluster.lakerunner_gke[0].location : null
+}
+
+output "kubectl_command" {
+  description = "Command to configure kubectl (when GKE enabled)"
+  value       = var.enable_gke ? "gcloud container clusters get-credentials ${google_container_cluster.lakerunner_gke[0].name} --zone=${google_container_cluster.lakerunner_gke[0].location} --project=${var.project_id}" : null
 }
 
 output "deployment_summary" {
   description = "POC deployment summary"
   value       = <<-EOT
     
-    🎉 POC Environment Ready!
+    POC Environment Ready!
     
     Storage:
       Lakerunner Bucket: ${google_storage_bucket.lakerunner.name}
       Notifications Topic: ${google_pubsub_topic.object_notifications.name}
     
-          ${var.create_postgresql ? "Database:\n      PostgreSQL Instance: ${google_sql_database_instance.lakerunner_postgresql[0].name}\n      Databases: ${var.postgresql_database_name}, configdb\n      User: ${var.postgresql_user}\n      Private IP: ${google_sql_database_instance.lakerunner_postgresql[0].private_ip_address}\n      ✅ Both lrdb and configdb ready for Lakerunner" : "💡 Enable PostgreSQL with create_postgresql=true for database support"}
+          ${var.create_postgresql ? "Database:\n      PostgreSQL Instance: ${google_sql_database_instance.lakerunner_postgresql[0].name}\n      Databases: ${var.postgresql_database_name}, configdb\n      User: ${var.postgresql_user}\n      Private IP: ${google_sql_database_instance.lakerunner_postgresql[0].private_ip_address}\n      Both lrdb and configdb ready for Lakerunner" : "Enable PostgreSQL with create_postgresql=true for database support"}
     
     Network:
       VPC: ${local.vpc_name}
       Subnet: ${local.subnet_name}
-      ${var.create_vpc ? "✅ New VPC created with open firewall rules" : "ℹ️  Using existing VPC (configure firewall as needed)"}
+      Using existing VPC: ${local.vpc_name}
     
     Identity:
       Service Account: ${google_service_account.lakerunner_poc.email}
     
-    ${var.enable_compute ? "Compute:\n      VM IP: ${google_compute_instance.lakerunner_processor[0].network_interface[0].access_config[0].nat_ip}\n      VM Name: ${google_compute_instance.lakerunner_processor[0].name}\n      ✅ Docker pre-installed" : "💡 Enable compute with enable_compute=true for a ready-to-go VM"}
+    ${var.enable_gke ? "Kubernetes:\n      GKE Cluster: ${google_container_cluster.lakerunner_gke[0].name}\n      Location: ${google_container_cluster.lakerunner_gke[0].location}\n      Nodes: ${var.gke_min_nodes}-${var.gke_max_nodes} ${var.gke_machine_type}\n      kubectl: gcloud container clusters get-credentials ${google_container_cluster.lakerunner_gke[0].name} --zone=${google_container_cluster.lakerunner_gke[0].location}" : "Enable Kubernetes with enable_gke=true for container workloads"}
     
-    📝 Remember: POC resources auto-delete after 30 days
+    Remember: POC resources auto-delete after 30 days
   EOT
 }

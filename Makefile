@@ -13,19 +13,19 @@ test: ## Run all tests (format, validate, plan)
 check: test ## Alias for test
 
 fmt: ## Format Terraform files
-	@echo "🔧 Formatting Terraform files..."
+	@echo "Formatting Terraform files..."
 	@cd terraform/environments/poc && terraform fmt -recursive
 
 validate: ## Validate Terraform configuration
-	@echo "✅ Validating Terraform configuration..."
+	@echo "Validating Terraform configuration..."
 	@cd terraform/environments/poc && terraform validate
 
 plan: ## Run terraform plan with test project ID
-	@echo "📋 Running terraform plan..."
+	@echo "Running terraform plan..."
 	@cd terraform/environments/poc && terraform plan -var="project_id=lakerunner-terraform"
 
 clean: ## Clean up temporary files
-	@echo "🧹 Cleaning up..."
+	@echo "Cleaning up..."
 	@find . -name "*.tfstate*" -delete
 	@find . -name ".terraform" -type d -exec rm -rf {} + 2>/dev/null || true
 	@find . -name "*.plan" -delete
