@@ -134,6 +134,6 @@ output "deployment_summary" {
     Identity:
       Service Account: ${google_service_account.lakerunner_poc.email}
 
-    ${var.enable_gke ? "Kubernetes:\n      GKE Cluster: ${google_container_cluster.lakerunner_gke[0].name}\n      Location: ${google_container_cluster.lakerunner_gke[0].location}\n      Nodes: ${var.gke_min_nodes}-${var.gke_max_nodes} ${var.gke_machine_type}\n      kubectl: gcloud container clusters get-credentials ${google_container_cluster.lakerunner_gke[0].name} --zone=${google_container_cluster.lakerunner_gke[0].location}" : "Enable Kubernetes with enable_gke=true for container workloads"}
+    ${var.enable_gke ? "Kubernetes:\n      GKE Cluster: ${google_container_cluster.lakerunner_gke[0].name}\n      Location: ${google_container_cluster.lakerunner_gke[0].location}\n      Nodes: ${var.gke_min_nodes}-${var.gke_max_nodes} ${var.gke_machine_type}\n      kubectl: gcloud container clusters get-credentials ${google_container_cluster.lakerunner_gke[0].name} --zone=${google_container_cluster.lakerunner_gke[0].location} --project=${var.project_id}" : "Enable Kubernetes with enable_gke=true for container workloads"}
   EOT
 }
