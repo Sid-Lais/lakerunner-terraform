@@ -107,28 +107,33 @@ output "kubectl_command" {
   value       = var.enable_gke ? "gcloud container clusters get-credentials ${google_container_cluster.lakerunner_gke[0].name} --zone=${google_container_cluster.lakerunner_gke[0].location} --project=${var.project_id}" : null
 }
 
+# Kubernetes Workload Identity outputs (when enabled)
+output "k8s_service_account_email" {
+  description = "GCP service account email for Kubernetes Workload Identity (when GKE enabled)"
+  value       = var.enable_gke ? google_service_account.lakerunner_k8s[0].email : null
+}
+
+output "k8s_service_account_annotation_command" {
+  description = "Command to annotate Kubernetes service account for Workload Identity (when GKE enabled)"
+  value       = var.enable_gke ? "kubectl annotate serviceaccount lakerunner iam.gke.io/gcp-service-account=${google_service_account.lakerunner_k8s[0].email} -n lakerunner" : null
+}
+
 output "deployment_summary" {
   description = "POC deployment summary"
   value       = <<-EOT
-    
-    POC Environment Ready!
-    
     Storage:
       Lakerunner Bucket: ${google_storage_bucket.lakerunner.name}
       Notifications Topic: ${google_pubsub_topic.object_notifications.name}
-    
-          ${var.create_postgresql ? "Database:\n      PostgreSQL Instance: ${google_sql_database_instance.lakerunner_postgresql[0].name}\n      Databases: ${var.postgresql_database_name}, configdb\n      User: ${var.postgresql_user}\n      Private IP: ${google_sql_database_instance.lakerunner_postgresql[0].private_ip_address}\n      Both lrdb and configdb ready for Lakerunner" : "Enable PostgreSQL with create_postgresql=true for database support"}
-    
+      ${var.create_postgresql ? "Database:\n      PostgreSQL Instance: ${google_sql_database_instance.lakerunner_postgresql[0].name}\n      Databases: ${var.postgresql_database_name}, configdb\n      User: ${var.postgresql_user}\n      Private IP: ${google_sql_database_instance.lakerunner_postgresql[0].private_ip_address}\n      Both lrdb and configdb ready for Lakerunner" : "Enable PostgreSQL with create_postgresql=true for database support"}
+
     Network:
       VPC: ${local.vpc_name}
       Subnet: ${local.subnet_name}
       Using existing VPC: ${local.vpc_name}
-    
+
     Identity:
       Service Account: ${google_service_account.lakerunner_poc.email}
-    
+
     ${var.enable_gke ? "Kubernetes:\n      GKE Cluster: ${google_container_cluster.lakerunner_gke[0].name}\n      Location: ${google_container_cluster.lakerunner_gke[0].location}\n      Nodes: ${var.gke_min_nodes}-${var.gke_max_nodes} ${var.gke_machine_type}\n      kubectl: gcloud container clusters get-credentials ${google_container_cluster.lakerunner_gke[0].name} --zone=${google_container_cluster.lakerunner_gke[0].location}" : "Enable Kubernetes with enable_gke=true for container workloads"}
-    
-    Remember: POC resources auto-delete after 30 days
   EOT
 }

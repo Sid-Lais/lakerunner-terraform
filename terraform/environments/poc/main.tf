@@ -134,6 +134,14 @@ resource "google_service_account" "lakerunner_poc" {
   description  = "Service account for Lakerunner POC deployment"
 }
 
+# Service Account for Kubernetes Workload Identity
+resource "google_service_account" "lakerunner_k8s" {
+  count        = var.enable_gke ? 1 : 0
+  account_id   = "lakerunner-k8s-sa-${random_id.bucket_suffix.hex}"
+  display_name = "Lakerunner Kubernetes Service Account"
+  description  = "Service account for Lakerunner Kubernetes workloads via Workload Identity"
+}
+
 # IAM bindings for the service account
 resource "google_project_iam_member" "lakerunner_storage_admin" {
   project = var.project_id
@@ -272,6 +280,28 @@ resource "google_project_iam_member" "lakerunner_cloudsql_client" {
   member  = "serviceAccount:${google_service_account.lakerunner_poc.email}"
 }
 
+# IAM bindings for the Kubernetes service account
+resource "google_storage_bucket_iam_member" "lakerunner_k8s_bucket_admin" {
+  count  = var.enable_gke ? 1 : 0
+  bucket = google_storage_bucket.lakerunner.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.lakerunner_k8s[0].email}"
+}
+
+resource "google_pubsub_subscription_iam_member" "lakerunner_k8s_subscriber" {
+  count        = var.enable_gke ? 1 : 0
+  subscription = google_pubsub_subscription.lakerunner_notifications.name
+  role         = "roles/pubsub.subscriber"
+  member       = "serviceAccount:${google_service_account.lakerunner_k8s[0].email}"
+}
+
+resource "google_pubsub_topic_iam_member" "lakerunner_k8s_viewer" {
+  count  = var.enable_gke ? 1 : 0
+  topic  = google_pubsub_topic.object_notifications.name
+  role   = "roles/pubsub.viewer"
+  member = "serviceAccount:${google_service_account.lakerunner_k8s[0].email}"
+}
+
 # Optional GKE cluster for container workloads
 resource "google_container_cluster" "lakerunner_gke" {
   count    = var.enable_gke ? 1 : 0
@@ -362,4 +392,12 @@ resource "google_container_node_pool" "lakerunner_nodes" {
     max_surge       = 1
     max_unavailable = 0
   }
+}
+
+# Workload Identity binding for lakerunner namespace/serviceaccount
+resource "google_service_account_iam_member" "lakerunner_workload_identity" {
+  count              = var.enable_gke ? 1 : 0
+  service_account_id = google_service_account.lakerunner_k8s[0].name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "serviceAccount:${var.project_id}.svc.id.goog[lakerunner/lakerunner]"
 }
