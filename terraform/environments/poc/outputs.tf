@@ -118,12 +118,39 @@ output "k8s_service_account_annotation_command" {
   value       = var.enable_gke ? "kubectl annotate serviceaccount lakerunner iam.gke.io/gcp-service-account=${google_service_account.lakerunner_k8s[0].email} -n lakerunner" : null
 }
 
+# S3 Compatibility outputs
+output "s3_access_key" {
+  description = "S3 compatible access key for the bucket"
+  value       = google_storage_hmac_key.lakerunner_s3_key.access_id
+}
+
+output "s3_secret_key" {
+  description = "S3 compatible secret key for the bucket"
+  value       = google_storage_hmac_key.lakerunner_s3_key.secret
+  sensitive   = true
+}
+
+output "s3_endpoint" {
+  description = "S3 compatible endpoint URL"
+  value       = "https://storage.googleapis.com"
+}
+
+output "s3_region" {
+  description = "S3 compatible region"
+  value       = "auto"
+}
+
 output "deployment_summary" {
   description = "POC deployment summary"
   value       = <<-EOT
     Storage:
       Lakerunner Bucket: ${google_storage_bucket.lakerunner.name}
       Notifications Topic: ${google_pubsub_topic.object_notifications.name}
+      S3 Compatible Access:
+        Endpoint: https://storage.googleapis.com
+        Access Key: ${google_storage_hmac_key.lakerunner_s3_key.access_id}
+        Secret Key: [SENSITIVE - use 'terraform output -raw s3_secret_key' to view]
+        Region: auto
       ${var.create_postgresql ? "Database:\n      PostgreSQL Instance: ${google_sql_database_instance.lakerunner_postgresql[0].name}\n      Databases: ${var.postgresql_database_name}, configdb\n      User: ${var.postgresql_user}\n      Private IP: ${google_sql_database_instance.lakerunner_postgresql[0].private_ip_address}\n      Both lrdb and configdb ready for Lakerunner" : "Enable PostgreSQL with create_postgresql=true for database support"}
 
     Network:

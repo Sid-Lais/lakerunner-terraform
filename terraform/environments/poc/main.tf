@@ -44,7 +44,7 @@ resource "google_storage_bucket" "lakerunner" {
   location = var.region
 
   uniform_bucket_level_access = true
-  force_destroy              = true  # Allow deletion even with contents
+  force_destroy               = true # Allow deletion even with contents
 
   versioning {
     enabled = false # Simplified for POC
@@ -71,7 +71,7 @@ resource "google_pubsub_subscription" "lakerunner_notifications" {
   name  = "lakerunner-sub-${random_id.bucket_suffix.hex}"
   topic = google_pubsub_topic.object_notifications.name
 
-  ack_deadline_seconds = 20
+  ack_deadline_seconds       = 20
   message_retention_duration = "604800s" # 7 days
 
   enable_exactly_once_delivery = true
@@ -119,9 +119,9 @@ data "google_project" "current" {}
 
 # Configuration
 locals {
-  vpc_name    = var.vpc_name
-  subnet_name = var.subnet_name
-  postgresql_password = var.create_postgresql && var.postgresql_password == "" ? random_password.postgresql_password[0].result : var.postgresql_password
+  vpc_name                 = var.vpc_name
+  subnet_name              = var.subnet_name
+  postgresql_password      = var.create_postgresql && var.postgresql_password == "" ? random_password.postgresql_password[0].result : var.postgresql_password
   postgresql_instance_name = var.postgresql_instance_name != "" ? var.postgresql_instance_name : "lakerunner-postgres-${random_id.bucket_suffix.hex}"
 }
 
@@ -166,24 +166,24 @@ resource "random_password" "postgresql_password" {
 
 # Enable APIs required for Cloud SQL
 resource "google_project_service" "service_networking" {
-  count   = 1
-  project = var.project_id
-  service = "servicenetworking.googleapis.com"
+  count              = 1
+  project            = var.project_id
+  service            = "servicenetworking.googleapis.com"
   disable_on_destroy = false
 }
 
 resource "google_project_service" "sql_admin" {
-  count   = 1
-  project = var.project_id
-  service = "sqladmin.googleapis.com"
+  count              = 1
+  project            = var.project_id
+  service            = "sqladmin.googleapis.com"
   disable_on_destroy = false
 }
 
 # Enable Kubernetes Engine API for GKE
 resource "google_project_service" "container_api" {
-  count   = 1
-  project = var.project_id
-  service = "container.googleapis.com"
+  count              = 1
+  project            = var.project_id
+  service            = "container.googleapis.com"
   disable_on_destroy = false
 }
 
@@ -228,8 +228,8 @@ resource "google_sql_database_instance" "lakerunner_postgresql" {
     }
 
     maintenance_window {
-      day          = 7  # Sunday
-      hour         = 2  # 2 AM
+      day          = 7 # Sunday
+      hour         = 2 # 2 AM
       update_track = "stable"
     }
 
@@ -274,7 +274,7 @@ resource "google_sql_user" "lakerunner_user" {
 
 # Grant additional permissions to the service account for database management
 resource "google_project_iam_member" "lakerunner_cloudsql_client" {
-  count  = var.create_postgresql ? 1 : 0
+  count   = var.create_postgresql ? 1 : 0
   project = var.project_id
   role    = "roles/cloudsql.client"
   member  = "serviceAccount:${google_service_account.lakerunner_poc.email}"
@@ -319,7 +319,7 @@ resource "google_container_cluster" "lakerunner_gke" {
   # Private cluster configuration
   private_cluster_config {
     enable_private_nodes    = true
-    enable_private_endpoint = false  # Allow public endpoint for POC ease
+    enable_private_endpoint = false # Allow public endpoint for POC ease
     master_ipv4_cidr_block  = "172.16.0.0/28"
   }
 
@@ -400,4 +400,9 @@ resource "google_service_account_iam_member" "lakerunner_workload_identity" {
   service_account_id = google_service_account.lakerunner_k8s[0].name
   role               = "roles/iam.workloadIdentityUser"
   member             = "serviceAccount:${var.project_id}.svc.id.goog[lakerunner/lakerunner]"
+}
+
+# HMAC keys for S3 compatibility
+resource "google_storage_hmac_key" "lakerunner_s3_key" {
+  service_account_email = google_service_account.lakerunner_poc.email
 }
