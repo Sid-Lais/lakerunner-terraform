@@ -9,8 +9,8 @@ variable "installation_id" {
   default     = "poc"
 
   validation {
-    condition     = can(regex("^[a-z][a-z0-9]{0,19}$", var.installation_id))
-    error_message = "Installation ID must be 1-20 characters, start with a letter, then letters and numbers only."
+    condition     = can(regex("^[a-z][a-z0-9]{2,9}$", var.installation_id))
+    error_message = "Installation ID must be 3-10 characters, start with a letter, then letters and numbers only."
   }
 }
 

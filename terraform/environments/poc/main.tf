@@ -17,12 +17,21 @@ terraform {
   }
 }
 
+# Local values for consistent labeling
+locals {
+  common_labels = merge(var.labels, {
+    "lakerunner-id" = var.installation_id
+    "environment"   = var.environment
+    "managed-by"    = "terraform"
+  })
+}
+
 provider "google" {
   project = var.project_id
   region  = var.region
   zone    = var.zone
 
-  default_labels = var.labels
+  default_labels = local.common_labels
 }
 
 provider "google-beta" {
@@ -30,7 +39,7 @@ provider "google-beta" {
   region  = var.region
   zone    = var.zone
 
-  default_labels = var.labels
+  default_labels = local.common_labels
 }
 
 # Random ID for unique bucket naming
@@ -40,11 +49,12 @@ resource "random_id" "bucket_suffix" {
 
 # Main Lakerunner bucket with notifications
 resource "google_storage_bucket" "lakerunner" {
-  name     = "lakerunner-${var.installation_id}-${random_id.bucket_suffix.hex}"
+  name     = "lr-${var.installation_id}-lakerunner-${random_id.bucket_suffix.hex}"
   location = var.region
 
   uniform_bucket_level_access = true
   force_destroy               = true # Allow deletion even with contents
+  labels                      = local.common_labels
 
   versioning {
     enabled = false # Simplified for POC
@@ -63,12 +73,12 @@ resource "google_storage_bucket" "lakerunner" {
 
 # Pub/Sub topic for object notifications (excluding db/ path)
 resource "google_pubsub_topic" "object_notifications" {
-  name = "lakerunner-notifications-${var.installation_id}-${random_id.bucket_suffix.hex}"
+  name = "lr-${var.installation_id}-notifications-${random_id.bucket_suffix.hex}"
 }
 
 # Pull subscription for consuming object notifications
 resource "google_pubsub_subscription" "lakerunner_notifications" {
-  name  = "lakerunner-sub-${var.installation_id}-${random_id.bucket_suffix.hex}"
+  name  = "lr-${var.installation_id}-sub-${random_id.bucket_suffix.hex}"
   topic = google_pubsub_topic.object_notifications.name
 
   ack_deadline_seconds       = 20
@@ -94,7 +104,7 @@ resource "google_storage_notification" "object_create_notify" {
 
 # Service account for Pub/Sub notifications
 resource "google_service_account" "pubsub_notifications" {
-  account_id   = "lakerunner-pubsub-sa-${var.installation_id}-${random_id.bucket_suffix.hex}"
+  account_id   = "lr-${var.installation_id}-pubsub-${random_id.bucket_suffix.hex}"
   display_name = "Lakerunner Pub/Sub Notifications"
   description  = "Service account for handling object notifications"
 }
@@ -122,19 +132,19 @@ locals {
   vpc_name                 = google_compute_network.lakerunner_vpc.name
   subnet_name              = google_compute_subnetwork.lakerunner_subnet.name
   postgresql_password      = var.create_postgresql && var.postgresql_password == "" ? random_password.postgresql_password[0].result : var.postgresql_password
-  postgresql_instance_name = var.postgresql_instance_name != "" ? var.postgresql_instance_name : "lakerunner-postgres-${var.installation_id}-${random_id.bucket_suffix.hex}"
+  postgresql_instance_name = var.postgresql_instance_name != "" ? var.postgresql_instance_name : "lr-${var.installation_id}-postgres-${random_id.bucket_suffix.hex}"
 }
 
 # Create dedicated VPC for POC environment
 resource "google_compute_network" "lakerunner_vpc" {
-  name                    = "lakerunner-vpc-${var.installation_id}-${random_id.bucket_suffix.hex}"
+  name                    = "lr-${var.installation_id}-vpc-${random_id.bucket_suffix.hex}"
   auto_create_subnetworks = false
   routing_mode            = "REGIONAL"
 }
 
 # Create subnet for the POC VPC
 resource "google_compute_subnetwork" "lakerunner_subnet" {
-  name          = "lakerunner-subnet-${var.installation_id}-${random_id.bucket_suffix.hex}"
+  name          = "lr-${var.installation_id}-subnet-${random_id.bucket_suffix.hex}"
   ip_cidr_range = "10.0.0.0/24"
   region        = var.region
   network       = google_compute_network.lakerunner_vpc.id
@@ -160,7 +170,7 @@ resource "google_compute_subnetwork" "lakerunner_subnet" {
 # Internet Gateway (automatically created with VPC)
 # Firewall rules for the VPC
 resource "google_compute_firewall" "lakerunner_allow_internal" {
-  name    = "lakerunner-allow-internal-${var.installation_id}-${random_id.bucket_suffix.hex}"
+  name    = "lr-${var.installation_id}-allow-internal-${random_id.bucket_suffix.hex}"
   network = google_compute_network.lakerunner_vpc.name
 
   allow {
@@ -182,7 +192,7 @@ resource "google_compute_firewall" "lakerunner_allow_internal" {
 }
 
 resource "google_compute_firewall" "lakerunner_allow_ssh" {
-  name    = "lakerunner-allow-ssh-${var.installation_id}-${random_id.bucket_suffix.hex}"
+  name    = "lr-${var.installation_id}-allow-ssh-${random_id.bucket_suffix.hex}"
   network = google_compute_network.lakerunner_vpc.name
 
   allow {
@@ -197,14 +207,14 @@ resource "google_compute_firewall" "lakerunner_allow_ssh" {
 
 # Cloud Router for NAT gateway
 resource "google_compute_router" "lakerunner_router" {
-  name    = "lakerunner-router-${var.installation_id}-${random_id.bucket_suffix.hex}"
+  name    = "lr-${var.installation_id}-router-${random_id.bucket_suffix.hex}"
   region  = var.region
   network = google_compute_network.lakerunner_vpc.id
 }
 
 # Cloud NAT for internet access from private nodes
 resource "google_compute_router_nat" "lakerunner_nat" {
-  name                               = "lakerunner-nat-${var.installation_id}-${random_id.bucket_suffix.hex}"
+  name                               = "lr-${var.installation_id}-nat-${random_id.bucket_suffix.hex}"
   router                             = google_compute_router.lakerunner_router.name
   region                             = var.region
   nat_ip_allocate_option             = "AUTO_ONLY"
@@ -218,7 +228,7 @@ resource "google_compute_router_nat" "lakerunner_nat" {
 
 # Service Account for Lakerunner
 resource "google_service_account" "lakerunner_poc" {
-  account_id   = "lakerunner-poc-sa-${var.installation_id}-${random_id.bucket_suffix.hex}"
+  account_id   = "lr-${var.installation_id}-poc-${random_id.bucket_suffix.hex}"
   display_name = "Lakerunner POC Service Account"
   description  = "Service account for Lakerunner POC deployment"
 }
@@ -226,7 +236,7 @@ resource "google_service_account" "lakerunner_poc" {
 # Service Account for Kubernetes Workload Identity
 resource "google_service_account" "lakerunner_k8s" {
   count        = var.enable_gke ? 1 : 0
-  account_id   = "lakerunner-k8s-sa-${var.installation_id}-${random_id.bucket_suffix.hex}"
+  account_id   = "lr-${var.installation_id}-k8s-${random_id.bucket_suffix.hex}"
   display_name = "Lakerunner Kubernetes Service Account"
   description  = "Service account for Lakerunner Kubernetes workloads via Workload Identity"
 }
@@ -277,6 +287,8 @@ resource "google_project_service" "container_api" {
 }
 
 # Create VPC peering for Cloud SQL private networking
+# NOTE: Service networking connections are PROJECT-WIDE and shared between installations
+# This means destroying one installation can affect CloudSQL in other installations
 resource "google_compute_global_address" "private_ip_address" {
   count         = var.create_postgresql ? 1 : 0
   name          = "google-managed-services-${var.installation_id}-${random_id.bucket_suffix.hex}"
@@ -291,8 +303,13 @@ resource "google_service_networking_connection" "private_vpc_connection" {
   network                 = google_compute_network.lakerunner_vpc.id
   service                 = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.private_ip_address[0].name]
+  deletion_policy         = "ABANDON"  # Required to prevent interfering with other installations
 
   depends_on = [google_project_service.service_networking, google_project_service.sql_admin]
+  
+  lifecycle {
+    create_before_destroy = false
+  }
 }
 
 # Create PostgreSQL instance if requested
@@ -322,7 +339,7 @@ resource "google_sql_database_instance" "lakerunner_postgresql" {
       update_track = "stable"
     }
 
-    user_labels = var.labels
+    user_labels = local.common_labels
   }
 
   deletion_protection = false
@@ -394,10 +411,11 @@ resource "google_pubsub_topic_iam_member" "lakerunner_k8s_viewer" {
 # Optional GKE cluster for container workloads
 resource "google_container_cluster" "lakerunner_gke" {
   count    = var.enable_gke ? 1 : 0
-  name     = "lakerunner-gke-${var.installation_id}-${random_id.bucket_suffix.hex}"
+  name     = "lr-${var.installation_id}-gke-${random_id.bucket_suffix.hex}"
   location = var.zone
 
   deletion_protection = false
+  resource_labels     = local.common_labels
 
   depends_on = [google_project_service.container_api]
 
