@@ -27,13 +27,28 @@ output "region" {
 
 # Network outputs
 output "vpc_name" {
-  description = "VPC name (created or existing)"
-  value       = local.vpc_name
+  description = "VPC name (dedicated for POC)"
+  value       = google_compute_network.lakerunner_vpc.name
+}
+
+output "vpc_id" {
+  description = "VPC ID (full resource ID)"
+  value       = google_compute_network.lakerunner_vpc.id
 }
 
 output "subnet_name" {
-  description = "Subnet name (created or existing)"
-  value       = local.subnet_name
+  description = "Subnet name (dedicated for POC)"
+  value       = google_compute_subnetwork.lakerunner_subnet.name
+}
+
+output "subnet_id" {
+  description = "Subnet ID (full resource ID)"
+  value       = google_compute_subnetwork.lakerunner_subnet.id
+}
+
+output "subnet_cidr" {
+  description = "Subnet CIDR range"
+  value       = google_compute_subnetwork.lakerunner_subnet.ip_cidr_range
 }
 
 # Service Account outputs
@@ -154,9 +169,9 @@ output "deployment_summary" {
       ${var.create_postgresql ? "Database:\n      PostgreSQL Instance: ${google_sql_database_instance.lakerunner_postgresql[0].name}\n      Databases: ${var.postgresql_database_name}, configdb\n      User: ${var.postgresql_user}\n      Private IP: ${google_sql_database_instance.lakerunner_postgresql[0].private_ip_address}\n      Both lrdb and configdb ready for Lakerunner" : "Enable PostgreSQL with create_postgresql=true for database support"}
 
     Network:
-      VPC: ${local.vpc_name}
-      Subnet: ${local.subnet_name}
-      Using existing VPC: ${local.vpc_name}
+      VPC: ${google_compute_network.lakerunner_vpc.name} (dedicated)
+      Subnet: ${google_compute_subnetwork.lakerunner_subnet.name} (${google_compute_subnetwork.lakerunner_subnet.ip_cidr_range})
+      Private networking with Cloud NAT for internet access
 
     Identity:
       Service Account: ${google_service_account.lakerunner_poc.email}

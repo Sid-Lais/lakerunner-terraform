@@ -7,6 +7,10 @@
 # REQUIRED: Your GCP Project ID
 project_id = "your-gcp-project-id-here"
 
+# OPTIONAL: Installation ID for multiple POCs in same project
+# This allows you to run multiple independent POC environments
+installation_id = "poc"  # Examples: "poc", "demo", "trial", "customerdemo"
+
 # REQUIRED: GCP Region (choose closest to you)
 # Common options: us-central1, us-east1, europe-west1, asia-southeast1
 region = "us-central1"
@@ -25,13 +29,8 @@ labels = {
 }
 
 # Network Configuration
-# Uses existing VPC and subnet (typically the default VPC)
-vpc_name   = "default"      # GCP default VPC (exists in every project)
-subnet_name = "default"     # Default subnet in your region
-
-# For enterprise customers with custom networks:
-# vpc_name   = "your-existing-vpc-name"
-# subnet_name = "your-existing-subnet-name"
+# POC environment automatically creates a dedicated VPC for clean resource isolation
+# No network configuration required - everything is self-contained
 
 # Kubernetes Options
 # Enable GKE cluster for container workloads (optional)

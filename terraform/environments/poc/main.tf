@@ -40,7 +40,7 @@ resource "random_id" "bucket_suffix" {
 
 # Main Lakerunner bucket with notifications
 resource "google_storage_bucket" "lakerunner" {
-  name     = "lakerunner-${random_id.bucket_suffix.hex}"
+  name     = "lakerunner-${var.installation_id}-${random_id.bucket_suffix.hex}"
   location = var.region
 
   uniform_bucket_level_access = true
@@ -63,12 +63,12 @@ resource "google_storage_bucket" "lakerunner" {
 
 # Pub/Sub topic for object notifications (excluding db/ path)
 resource "google_pubsub_topic" "object_notifications" {
-  name = "lakerunner-notifications-${random_id.bucket_suffix.hex}"
+  name = "lakerunner-notifications-${var.installation_id}-${random_id.bucket_suffix.hex}"
 }
 
 # Pull subscription for consuming object notifications
 resource "google_pubsub_subscription" "lakerunner_notifications" {
-  name  = "lakerunner-sub-${random_id.bucket_suffix.hex}"
+  name  = "lakerunner-sub-${var.installation_id}-${random_id.bucket_suffix.hex}"
   topic = google_pubsub_topic.object_notifications.name
 
   ack_deadline_seconds       = 20
@@ -94,7 +94,7 @@ resource "google_storage_notification" "object_create_notify" {
 
 # Service account for Pub/Sub notifications
 resource "google_service_account" "pubsub_notifications" {
-  account_id   = "lakerunner-pubsub-sa-${random_id.bucket_suffix.hex}"
+  account_id   = "lakerunner-pubsub-sa-${var.installation_id}-${random_id.bucket_suffix.hex}"
   display_name = "Lakerunner Pub/Sub Notifications"
   description  = "Service account for handling object notifications"
 }
@@ -119,17 +119,106 @@ data "google_project" "current" {}
 
 # Configuration
 locals {
-  vpc_name                 = var.vpc_name
-  subnet_name              = var.subnet_name
+  vpc_name                 = google_compute_network.lakerunner_vpc.name
+  subnet_name              = google_compute_subnetwork.lakerunner_subnet.name
   postgresql_password      = var.create_postgresql && var.postgresql_password == "" ? random_password.postgresql_password[0].result : var.postgresql_password
-  postgresql_instance_name = var.postgresql_instance_name != "" ? var.postgresql_instance_name : "lakerunner-postgres-${random_id.bucket_suffix.hex}"
+  postgresql_instance_name = var.postgresql_instance_name != "" ? var.postgresql_instance_name : "lakerunner-postgres-${var.installation_id}-${random_id.bucket_suffix.hex}"
 }
 
-# Note: Using existing VPC and subnet specified in variables
+# Create dedicated VPC for POC environment
+resource "google_compute_network" "lakerunner_vpc" {
+  name                    = "lakerunner-vpc-${var.installation_id}-${random_id.bucket_suffix.hex}"
+  auto_create_subnetworks = false
+  routing_mode            = "REGIONAL"
+}
+
+# Create subnet for the POC VPC
+resource "google_compute_subnetwork" "lakerunner_subnet" {
+  name          = "lakerunner-subnet-${var.installation_id}-${random_id.bucket_suffix.hex}"
+  ip_cidr_range = "10.0.0.0/24"
+  region        = var.region
+  network       = google_compute_network.lakerunner_vpc.id
+
+  # Secondary IP ranges for GKE if enabled
+  dynamic "secondary_ip_range" {
+    for_each = var.enable_gke ? [1] : []
+    content {
+      range_name    = "pods"
+      ip_cidr_range = "10.4.0.0/14"
+    }
+  }
+
+  dynamic "secondary_ip_range" {
+    for_each = var.enable_gke ? [1] : []
+    content {
+      range_name    = "services"
+      ip_cidr_range = "10.8.0.0/20"
+    }
+  }
+}
+
+# Internet Gateway (automatically created with VPC)
+# Firewall rules for the VPC
+resource "google_compute_firewall" "lakerunner_allow_internal" {
+  name    = "lakerunner-allow-internal-${var.installation_id}-${random_id.bucket_suffix.hex}"
+  network = google_compute_network.lakerunner_vpc.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["0-65535"]
+  }
+
+  allow {
+    protocol = "udp"
+    ports    = ["0-65535"]
+  }
+
+  allow {
+    protocol = "icmp"
+  }
+
+  source_ranges = ["10.0.0.0/24", "10.4.0.0/14", "10.8.0.0/20"]
+  priority      = 1000
+}
+
+resource "google_compute_firewall" "lakerunner_allow_ssh" {
+  name    = "lakerunner-allow-ssh-${var.installation_id}-${random_id.bucket_suffix.hex}"
+  network = google_compute_network.lakerunner_vpc.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["lakerunner-ssh"]
+  priority      = 1000
+}
+
+# Cloud Router for NAT gateway
+resource "google_compute_router" "lakerunner_router" {
+  name    = "lakerunner-router-${var.installation_id}-${random_id.bucket_suffix.hex}"
+  region  = var.region
+  network = google_compute_network.lakerunner_vpc.id
+}
+
+# Cloud NAT for internet access from private nodes
+resource "google_compute_router_nat" "lakerunner_nat" {
+  name                               = "lakerunner-nat-${var.installation_id}-${random_id.bucket_suffix.hex}"
+  router                             = google_compute_router.lakerunner_router.name
+  region                             = var.region
+  nat_ip_allocate_option             = "AUTO_ONLY"
+  source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
+
+  log_config {
+    enable = true
+    filter = "ERRORS_ONLY"
+  }
+}
 
 # Service Account for Lakerunner
 resource "google_service_account" "lakerunner_poc" {
-  account_id   = "lakerunner-poc-sa-${random_id.bucket_suffix.hex}"
+  account_id   = "lakerunner-poc-sa-${var.installation_id}-${random_id.bucket_suffix.hex}"
   display_name = "Lakerunner POC Service Account"
   description  = "Service account for Lakerunner POC deployment"
 }
@@ -137,7 +226,7 @@ resource "google_service_account" "lakerunner_poc" {
 # Service Account for Kubernetes Workload Identity
 resource "google_service_account" "lakerunner_k8s" {
   count        = var.enable_gke ? 1 : 0
-  account_id   = "lakerunner-k8s-sa-${random_id.bucket_suffix.hex}"
+  account_id   = "lakerunner-k8s-sa-${var.installation_id}-${random_id.bucket_suffix.hex}"
   display_name = "Lakerunner Kubernetes Service Account"
   description  = "Service account for Lakerunner Kubernetes workloads via Workload Identity"
 }
@@ -190,16 +279,16 @@ resource "google_project_service" "container_api" {
 # Create VPC peering for Cloud SQL private networking
 resource "google_compute_global_address" "private_ip_address" {
   count         = var.create_postgresql ? 1 : 0
-  name          = "google-managed-services-${local.vpc_name}"
+  name          = "google-managed-services-${var.installation_id}-${random_id.bucket_suffix.hex}"
   purpose       = "VPC_PEERING"
   address_type  = "INTERNAL"
   prefix_length = 16
-  network       = "projects/${var.project_id}/global/networks/${local.vpc_name}"
+  network       = google_compute_network.lakerunner_vpc.id
 }
 
 resource "google_service_networking_connection" "private_vpc_connection" {
   count                   = var.create_postgresql ? 1 : 0
-  network                 = "projects/${var.project_id}/global/networks/${local.vpc_name}"
+  network                 = google_compute_network.lakerunner_vpc.id
   service                 = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.private_ip_address[0].name]
 
@@ -218,7 +307,7 @@ resource "google_sql_database_instance" "lakerunner_postgresql" {
 
     ip_configuration {
       ipv4_enabled    = false
-      private_network = "projects/${var.project_id}/global/networks/${local.vpc_name}"
+      private_network = google_compute_network.lakerunner_vpc.id
       ssl_mode        = "ALLOW_UNENCRYPTED_AND_ENCRYPTED"
     }
 
@@ -305,16 +394,16 @@ resource "google_pubsub_topic_iam_member" "lakerunner_k8s_viewer" {
 # Optional GKE cluster for container workloads
 resource "google_container_cluster" "lakerunner_gke" {
   count    = var.enable_gke ? 1 : 0
-  name     = "lakerunner-gke-${random_id.bucket_suffix.hex}"
+  name     = "lakerunner-gke-${var.installation_id}-${random_id.bucket_suffix.hex}"
   location = var.zone
 
   deletion_protection = false
 
   depends_on = [google_project_service.container_api]
 
-  # Use existing VPC
-  network    = "projects/${var.project_id}/global/networks/${local.vpc_name}"
-  subnetwork = "projects/${var.project_id}/regions/${var.region}/subnetworks/${local.subnet_name}"
+  # Use our dedicated VPC
+  network    = google_compute_network.lakerunner_vpc.id
+  subnetwork = google_compute_subnetwork.lakerunner_subnet.id
 
   # Private cluster configuration
   private_cluster_config {
@@ -323,10 +412,10 @@ resource "google_container_cluster" "lakerunner_gke" {
     master_ipv4_cidr_block  = "172.16.0.0/28"
   }
 
-  # IP allocation for pods and services - use smaller ranges for default VPC
+  # IP allocation for pods and services - use secondary ranges
   ip_allocation_policy {
-    cluster_ipv4_cidr_block  = "10.4.0.0/14"
-    services_ipv4_cidr_block = "10.8.0.0/20"
+    cluster_secondary_range_name  = "pods"
+    services_secondary_range_name = "services"
   }
 
   # Remove default node pool (we'll create our own)

@@ -3,6 +3,17 @@ variable "project_id" {
   type        = string
 }
 
+variable "installation_id" {
+  description = "Unique identifier for this installation (allows multiple POCs in same project)"
+  type        = string
+  default     = "poc"
+
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9]{0,19}$", var.installation_id))
+    error_message = "Installation ID must be 1-20 characters, start with a letter, then letters and numbers only."
+  }
+}
+
 variable "region" {
   description = "GCP region for POC resources (choose closest to you)"
   type        = string
@@ -27,18 +38,8 @@ variable "labels" {
   default     = {}
 }
 
-# Network Configuration
-variable "vpc_name" {
-  description = "VPC name for existing VPC to use"
-  type        = string
-  default     = "default"
-}
-
-variable "subnet_name" {
-  description = "Subnet name for existing subnet to use"
-  type        = string
-  default     = "default"
-}
+# Network Configuration - now using dedicated VPC
+# Note: vpc_name and subnet_name are now created dynamically
 
 # Kubernetes Configuration
 variable "enable_gke" {
