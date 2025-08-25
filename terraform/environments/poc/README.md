@@ -1,4 +1,4 @@
-# Lakerunner POC Environment
+# Lakerunner POC Environment - Google Cloud Platform
 
 ## Quick Start (5 minutes)
 
