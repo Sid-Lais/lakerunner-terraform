@@ -100,6 +100,9 @@ resource "google_storage_notification" "object_create_notify" {
 
   # This will notify on all objects - we'll filter out db/ in the subscriber
   # GCS notifications don't support path exclusions, only inclusions
+  depends_on = [
+    google_pubsub_topic_iam_member.storage_publisher
+  ]
 }
 
 # Service account for Pub/Sub notifications
