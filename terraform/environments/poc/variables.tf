@@ -78,6 +78,25 @@ variable "gke_disk_size_gb" {
   default     = 50
 }
 
+# Kafka Configuration
+variable "enable_kafka" {
+  description = "Enable Managed Kafka cluster for event streaming"
+  type        = bool
+  default     = false
+}
+
+variable "kafka_cpu_count" {
+  description = "CPU count per Kafka broker"
+  type        = number
+  default     = 1
+}
+
+variable "kafka_memory_gb" {
+  description = "Memory in GB per Kafka broker"
+  type        = number
+  default     = 3
+}
+
 # PostgreSQL Configuration
 variable "create_postgresql" {
   description = "Create new PostgreSQL instance (true) or use existing (false)"
