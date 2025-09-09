@@ -65,10 +65,11 @@ create_postgresql = true
 # postgresql_password     = "your-existing-password"
 
 # PostgreSQL Instance Settings (only used when create_postgresql = true)
-postgresql_machine_type = "db-f1-micro"
+postgresql_machine_type = "db-custom-4-16384"
 postgresql_disk_size_gb = 10
 postgresql_version      = "POSTGRES_17"
 
 # PostgreSQL Credentials (only used when create_postgresql = true)
 # Leave postgresql_password empty for auto-generation
 # postgresql_password = ""
+

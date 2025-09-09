@@ -146,3 +146,9 @@ variable "postgresql_version" {
   type        = string
   default     = "POSTGRES_17"
 }
+
+variable "postgresql_edition" {
+  description = "PostgreSQL edition (ENTERPRISE or ENTERPRISE_PLUS)"
+  type        = string
+  default     = "ENTERPRISE"
+}

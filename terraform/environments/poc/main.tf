@@ -331,7 +331,8 @@ resource "google_sql_database_instance" "lakerunner_postgresql" {
   region           = var.region
 
   settings {
-    tier = var.postgresql_machine_type
+    tier    = var.postgresql_machine_type
+    edition = var.postgresql_edition
     
     ip_configuration {
       ipv4_enabled    = false
