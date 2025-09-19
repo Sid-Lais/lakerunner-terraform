@@ -1,3 +1,4 @@
+# Self-contained shim so you can run from this folder with CLI auth
 terraform {
   required_version = ">= 1.3.0"
   required_providers {
@@ -16,7 +17,9 @@ terraform {
   }
 }
 
-# Use Azure CLI / Managed Identity / or ARM_* env automatically.
 provider "azurerm" {
   features {}
 }
+
+provider "random" {}
+provider "time" {}
