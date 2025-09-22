@@ -77,8 +77,3 @@ output "kafka_bootstrap_server" {
   value       = var.enable_kafka ? "${azurerm_eventhub_namespace.ehns[0].name}.servicebus.windows.net:9093" : null
   description = "Kafka-compatible bootstrap (SASL_SSL)"
 }
-
-output "kafka_topics" {
-  value       = var.enable_kafka ? [for eh in azurerm_eventhub.topics : eh.name] : []
-  description = "Event Hubs configured as Kafka topics"
-}
